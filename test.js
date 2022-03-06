@@ -36,8 +36,14 @@ function centralized (times) {
 }
 
 db.collection('single').clear();
+db.collection('single').insertOne({ key: 'value', anotherKey: 'anotherValue' });
+db.collection('single').insertOne({ key: 'value', anotherKey: 'anotherValue' });
 
 let { _id } = db.collection('single').insertOne({ key: 'value', anotherKey: 'anotherValue' });
 
-console.log(db.collection('single').findOne({ $equals: { _id } }))
+console.log(db.collection('single').findOne({ $equals: { _id } }));
+(db.collection('single').updateOne({ $equals: { _id } }, { key: 'notValue' }))
+console.log(db.collection('single').findOne({ $equals: { _id } }));
 console.log('\n');
+
+db.collection('single').deleteOne({ $equals: { _id } })

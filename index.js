@@ -9,6 +9,22 @@ if (!fs.existsSync(path.join(__dirname, '.simpledb'))) {
   console.log('\x1b[1m\x1b[31m *** it is strongly recommended that you add .simpledb to your .gitignore file *** \n\x1b[0m');
 }
 
+function update (original, modifier) {
+    for (const modificationName in modifier) {
+        let modification = modifier[modificationName];
+        if (modification && modification.constructor && modification.constructor.name === 'Object') {
+            if (original[modificationName] && original[modificationName].constructor && original[modificationName].constructor.name === 'Object') {
+                original[modificationName] = update(original[modificationName], modification);
+            } else {
+                original[modificationName] = modification;
+            }
+        } else {
+            original[modificationName] = modification;
+        }
+    }
+    return original;
+}
+
 function generateId () {
     let uuid = Date.now() + '';
     uuid += ((Math.round(((Math.round(performance.now() * 100) / 100) % 1) * 100)) + '').padStart(2, '0') + '';
@@ -35,12 +51,25 @@ class Database {
     }
 }
 
+class Util {
+    constructor () {
+
+    }
+    static generateId () {
+        return generateId();
+    }
+    static update (a, b) {
+        return update(a, b);
+    }
+}
+
 class DatabaseQuery {
     constructor (query) {
         this.query = query;
         if (typeof query !== 'object') throw new Error('Query must be an object');
     }
     test (entry) {
+        if (entry == null) return false;
         if (this.query.$equals) for (let key in this.query.$equals) {
             if (entry[key] !== this.query.$equals[key]) return false;
         }
@@ -65,7 +94,8 @@ class Collection {
         let files = Math.ceil(length / 1000);
         let results = [];
         for (let i = 0; i < files; i++) {
-            results.push(...JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8')));
+            let file = JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8'));
+            results.push(...file.filter(file => file != null));
         }
         return results;
     }
@@ -95,6 +125,92 @@ class Collection {
         }
         for (const entry of data) {
             if (query.test(entry)) return entry;
+        }
+        return null;
+    }
+    deleteOne (query) {
+        if (!(query instanceof DatabaseQuery)) query = new DatabaseQuery(query);
+        let meta = JSON.parse(fs.readFileSync(path.join(this.path, 'meta.json'), 'utf8'));
+        let { length } = meta;
+        let files = Math.ceil(length / 1000);
+        let data = [];
+        for (let i = 0; i < files; i++) {
+            data.push(...JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8')));
+        }
+        for (const entry of data) {
+            if (query.test(entry)) {
+                let pos = data.indexOf(entry);
+                let file = Math.floor(pos / 1000);
+                let index = pos % 1000;
+                let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
+                fileData[index] = null;
+                fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
+                return;
+            }
+        }
+        return null;
+    }
+    deleteMany (query) {
+        if (!(query instanceof DatabaseQuery)) query = new DatabaseQuery(query);
+        let meta = JSON.parse(fs.readFileSync(path.join(this.path, 'meta.json'), 'utf8'));
+        let { length } = meta;
+        let files = Math.ceil(length / 1000);
+        let data = [];
+        for (let i = 0; i < files; i++) {
+            data.push(...JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8')));
+        }
+        for (const entry of data) {
+            if (query.test(entry)) {
+                let pos = data.indexOf(entry);
+                let file = Math.floor(pos / 1000);
+                let index = pos % 1000;
+                let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
+                fileData[index] = null;
+                fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
+            }
+        }
+        return null;
+    }
+    updateOne (query, doc) {
+        if (!(query instanceof DatabaseQuery)) query = new DatabaseQuery(query);
+        let meta = JSON.parse(fs.readFileSync(path.join(this.path, 'meta.json'), 'utf8'));
+        let { length } = meta;
+        let files = Math.ceil(length / 1000);
+        let data = [];
+        for (let i = 0; i < files; i++) {
+            data.push(...JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8')));
+        }
+        for (const entry of data) {
+            if (query.test(entry)) {
+                let pos = data.indexOf(entry);
+                let file = Math.floor(pos / 1000);
+                let index = pos % 1000;
+                let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
+                fileData[index] = update(fileData[index], doc);
+                fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
+                return;
+            }
+        }
+        return null;
+    }
+    updateMany (query, doc) {
+        if (!(query instanceof DatabaseQuery)) query = new DatabaseQuery(query);
+        let meta = JSON.parse(fs.readFileSync(path.join(this.path, 'meta.json'), 'utf8'));
+        let { length } = meta;
+        let files = Math.ceil(length / 1000);
+        let data = [];
+        for (let i = 0; i < files; i++) {
+            data.push(...JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8')));
+        }
+        for (const entry of data) {
+            if (query.test(entry)) {
+                let pos = data.indexOf(entry);
+                let file = Math.floor(pos / 1000);
+                let index = pos % 1000;
+                let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
+                fileData[index] = update(fileData[index], doc);
+                fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
+            }
         }
         return null;
     }
@@ -145,6 +261,9 @@ class Collection {
         fs.mkdirSync(path.join(this.database.path, this.name));
         fs.writeFileSync(path.join(this.path, 'meta.json'), '{"length":0}', 'utf8');
     }
+    deleteAll () {
+        return this.clear();
+    }
 }
 
 class FileCollection extends Collection {
@@ -166,4 +285,4 @@ class FileCollection extends Collection {
     }
 }
 
-module.exports = { Database, Collection, FileCollection };
+module.exports = { Database, Collection, FileCollection, Util, DatabaseQuery };
