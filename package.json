@@ -1,0 +1,26 @@
+{
+  "name": "simple-database",
+  "version": "1.0.0",
+  "description": "A local database for JavaScript projects",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yodalightsabr/simple-database.git"
+  },
+  "keywords": [
+    "database",
+    "db",
+    "javascript",
+    "local",
+    "offline"
+  ],
+  "author": "YodaLightsabr",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yodalightsabr/simple-database/issues"
+  },
+  "homepage": "https://github.com/yodalightsabr/simple-database#readme"
+}
