@@ -1,14 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-if (!fs.existsSync(path.join(__dirname, '.simpledb'))) {
-  console.log('\x1b[1m\x1b[36m\n *** .simpledb directory not found; creating... *** \n\x1b[0m');
-  fs.mkdirSync(path.join(__dirname, '.simpledb'));
-  fs.writeFileSync(path.join(__dirname, '.simpledb', 'meta.json'), '{}');
-  console.log('\x1b[1m\x1b[36m *** created .simpledb *** \n\x1b[0m');
-  console.log('\x1b[1m\x1b[31m *** it is strongly recommended that you add .simpledb to your .gitignore file *** \n\x1b[0m');
-}
-
 function update (original, modifier) {
     for (const modificationName in modifier) {
         let modification = modifier[modificationName];
@@ -38,7 +30,14 @@ function generateId () {
 class Database {
     constructor (dirPath) {
         this.path = dirPath;
-        if (!fs.existsSync(path.join(dirPath, 'meta.json'))) throw new Error('Missing meta.json');
+	if (!fs.existsSync(dirPath)) {
+  console.log('\x1b[1m\x1b[36m\n *** .simpledb directory not found; creating... *** \n\x1b[0m');
+           fs.mkdirSync(dirPath);
+           fs.writeFileSync(path.join(dirPath, 'meta.json'), '{}', 'utf8');
+           console.log('\x1b[1m\x1b[36m *** created .simpledb *** \n\x1b[0m');
+           console.log('\x1b[1m\x1b[31m *** it is strongly recommended that you add .simpledb to your .gitignore file *** \n\x1b[0m');
+       } 
+       if (!fs.existsSync(path.join(dirPath, 'meta.json'))) throw new Error('Missing meta.json');
     }
     collection (name) {
         return new Collection(name, this);

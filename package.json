@@ -1,6 +1,6 @@
 {
   "name": "@yodalightsabr/db",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A local database for JavaScript projects",
   "main": "index.js",
   "scripts": {
