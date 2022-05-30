@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+let counter = 0;
 
 function update (original, modifier) {
     for (const modificationName in modifier) {
@@ -17,13 +18,31 @@ function update (original, modifier) {
     return original;
 }
 
+function base10toHex (str) { // .toString(16) only works up to 2^53
+    let dec = str.toString().split(''), sum = [], hex = [], i, s;
+    while (dec.length) {
+        s = 1 * dec.shift();
+        for(let i = 0; s || i < sum.length; i++){
+            s += (sum[i] || 0) * 10;
+            sum[i] = s % 16;
+            s = (s - sum[i]) / 16;
+        }
+    }
+    while (sum.length) {
+        hex.push(sum.pop().toString(16));
+    }
+    return hex.join('');
+}
+
 function generateId () {
+    counter += 1;
     let uuid = Date.now() + '';
     uuid += ((Math.round(((Math.round(performance.now() * 100) / 100) % 1) * 100)) + '').padStart(2, '0') + '';
-    uuid += process.pid + '';
-    uuid += ((1 * Math.random() * 10000) + '').substring(0, 6);
-    uuid = parseFloat(uuid).toString(16);
-    uuid = uuid.substring(0, uuid.length - 5);
+    uuid += (process.pid + '').padStart(6, '0');
+    uuid += (Math.floor(1 * Math.random() * 1000000) + '').substring(0, 6);
+    uuid += counter % 10;
+    uuid = base10toHex(uuid.padEnd(30, '0').substring(0, 30));
+    console.log({ uuid, counter });
     return uuid;
 }
 
@@ -40,7 +59,12 @@ class Database {
        if (!fs.existsSync(path.join(dirPath, 'meta.json'))) throw new Error('Missing meta.json');
     }
     collection (name) {
-        return new Collection(name, this);
+        const collection = new Collection(name, this);
+        if (!fs.existsSync(collection.path)) {
+            fs.mkdirSync(collection.path);
+            fs.writeFileSync(path.join(collection.path, 'meta.json'), `{"length":0}`, 'utf8');
+        }
+        return collection;
     }
     collections () {
         return fs.readdirSync(this.path).filter(file => file !== 'meta.json').map(collection => new Collection(collection, this));
@@ -63,12 +87,12 @@ class Util {
 }
 
 class DatabaseQuery {
-    constructor (query) {
+    constructor (query = {}) {
         this.query = query;
         if (typeof query !== 'object') throw new Error('Query must be an object');
     }
     test (entry) {
-        if (entry == null) return false;
+        if (entry == null || entry === 0) return false;
         if (this.query.$equals) for (let key in this.query.$equals) {
             if (entry[key] !== this.query.$equals[key]) return false;
         }
@@ -88,15 +112,7 @@ class Collection {
         return path.join(this.database.path, this.name);
     }
     findAll () {
-        let meta = JSON.parse(fs.readFileSync(path.join(this.path, 'meta.json'), 'utf8'));
-        let { length } = meta;
-        let files = Math.ceil(length / 1000);
-        let results = [];
-        for (let i = 0; i < files; i++) {
-            let file = JSON.parse(fs.readFileSync(path.join(this.path, `${i}.json`), 'utf8'));
-            results.push(...file.filter(file => file != null));
-        }
-        return results;
+        return this.findMany({});
     }
     findMany (query) {
         if (!(query instanceof DatabaseQuery)) query = new DatabaseQuery(query);
@@ -142,7 +158,7 @@ class Collection {
                 let file = Math.floor(pos / 1000);
                 let index = pos % 1000;
                 let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
-                fileData[index] = null;
+                fileData[index] = 0;
                 fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
                 return;
             }
@@ -164,7 +180,7 @@ class Collection {
                 let file = Math.floor(pos / 1000);
                 let index = pos % 1000;
                 let fileData = JSON.parse(fs.readFileSync(path.join(this.path, `${file}.json`), 'utf8'));
-                fileData[index] = null;
+                fileData[index] = 0;
                 fs.writeFileSync(path.join(this.path, `${file}.json`), JSON.stringify(fileData), 'utf8');
             }
         }
@@ -262,6 +278,11 @@ class Collection {
     }
     deleteAll () {
         return this.clear();
+    }
+    collectGarbage () {
+        const docs = this.findAll();
+        this.deleteAll();
+        this.insertMany(docs);
     }
 }
 
